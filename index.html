@@ -1,0 +1,553 @@
+<!DOCTYPE html>
+<html lang="es">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
+    <title>Mis Gastos</title>
+    
+    <!-- PWA META TAGS PARA COMPORTAMIENTO DE APP NATIVA -->
+    <meta name="theme-color" content="#000000">
+    <meta name="mobile-web-app-capable" content="yes">
+    <meta name="apple-mobile-web-app-capable" content="yes">
+    <meta name="apple-mobile-web-app-status-bar-style" content="black-translucent">
+    <meta name="apple-mobile-web-app-title" content="Mis Gastos">
+    
+    <link rel="manifest" href="data:application/manifest+json;charset=utf-8,%7B%22name%22%3A%22Mis%20Gastos%22%2C%22short_name%22%3A%22Gastos%22%2C%22start_url%22%3A%22.%22%2C%22display%22%3A%22standalone%22%2C%22background_color%22%3A%22%23000000%22%2C%22theme_color%22%3A%22%23000000%22%2C%22icons%22%3A%5B%7B%22src%22%3A%22data%3Aimage%2Fsvg%2Bxml%2C%3Csvg%20xmlns%3D'http%3A%2F%2Fwww.w3.org%2F2000%2Fsvg'%20viewBox%3D'0%200%20512%20512'%3E%3Cpath%20fill%3D'%2338bdf8'%20d%3D'M243.4%202.6l-224%2096c-14%206-21.8%2021-18.7%2035.8S16.8%20160%2032%20160h448c15.2%200%2028.3-9.4%2031.3-24.3s-4.7-29.8-18.7-35.8l-224-96c-4.6-2-9.8-2-14.4%200zM48%20192v224h32V192H48zm80%200v224h32V192h-32zm112%200v224h32V192h-32zm80%200v224h32V192h-32zm112%200v224h32V192h-32zM16%20448v32c0%2017.7%2014.3%2032%2032%2032h416c17.7%200%2032-14.3%2032-32v-32H16z'%2F%3E%3C%2Fsvg%3E%22%2C%22sizes%22%3A%22512x512%22%2C%22type%22%3A%22image%2Fsvg%2Bxml%22%2C%22purpose%22%3A%22any%20maskable%22%7D%5D%7D">
+    <link rel="icon" type="image/svg+xml" href="data:image/svg+xml,<svg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 512 512'><path fill='%2338bdf8' d='M243.4 2.6l-224 96c-14 6-21.8 21-18.7 35.8S16.8 160 32 160h448c15.2 0 28.3-9.4 31.3-24.3s-4.7-29.8-18.7-35.8l-224-96c-4.6-2-9.8-2-14.4 0zM48 192v224h32V192H48zm80 0v224h32V192h-32zm112 0v224h32V192h-32zm80 0v224h32V192h-32zm112 0v224h32V192h-32zM16 448v32c0 17.7 14.3 32 32 32h416c17.7 0 32-14.3 32-32v-32H16z'/></svg>">
+    
+    <!-- FONT AWESOME & CHART.JS -->
+    <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.5.1/css/all.min.css">
+    <script src="https://cdn.jsdelivr.net/npm/chart.js"></script>
+
+    <!-- FIREBASE SDK (Compat versión para integración sencilla sin bundlers) -->
+    <script src="https://www.gstatic.com/firebasejs/10.8.1/firebase-app-compat.js"></script>
+    <script src="https://www.gstatic.com/firebasejs/10.8.1/firebase-firestore-compat.js"></script>
+    
+    <style>
+        :root {
+            --bg-color: #000000; --card-bg: #121212; --card-hover: #1c1c1e;
+            --text-main: #ffffff; --text-muted: #a1a1aa; --accent: #38bdf8;
+            --danger: #f43f5e; --success: #10b981; --border: #27272a;
+            --color-fede: #4ade80; --color-agricola: #ffffff; --color-promerica: #15803d; 
+            --color-peya: #ef4444; --color-credicomer: #22d3ee; --color-cuscatlan: #f97316; 
+        }
+        * { box-sizing: border-box; margin: 0; padding: 0; font-family: 'Segoe UI', Roboto, sans-serif; -webkit-tap-highlight-color: transparent; }
+        body { background-color: var(--bg-color); color: var(--text-main); padding: 20px; min-height: 100vh; }
+        .container { max-width: 1450px; margin: 0 auto; }
+        header { display: flex; justify-content: space-between; align-items: center; margin-bottom: 25px; padding-bottom: 20px; border-bottom: 1px solid var(--border); flex-wrap: wrap; gap: 15px; }
+        .brand-area { display: flex; align-items: center; gap: 15px; }
+        h1 { font-size: 1.8rem; font-weight: 700; letter-spacing: -0.5px; }
+        .month-selector { background-color: var(--card-bg); border: 1px solid var(--border); color: var(--text-main); font-size: 1rem; font-weight: 600; padding: 8px 12px; border-radius: 8px; outline: none; }
+        .header-stats { display: flex; align-items: center; gap: 15px; flex-wrap: wrap; }
+        .stat-box { background: var(--card-bg); border: 1px solid var(--border); padding: 10px 18px; border-radius: 10px; display: flex; flex-direction: column; align-items: flex-end; flex-grow: 1; }
+        .stat-box label { font-size: 0.7rem; color: var(--text-muted); text-transform: uppercase; letter-spacing: 1px; margin-bottom: 4px; }
+        .salary-input-wrapper { display: flex; align-items: center; font-size: 1.3rem; font-weight: 700; color: var(--accent); }
+        .salary-input { background: transparent; border: none; color: var(--accent); font-size: 1.3rem; font-weight: 700; width: 100px; text-align: right; outline: none; }
+        .stat-value { font-size: 1.3rem; font-weight: 700; }
+        .btn-reset { background: rgba(244, 63, 94, 0.1); color: var(--danger); border: 1px solid var(--danger); padding: 8px 12px; border-radius: 6px; cursor: pointer; font-size: 0.8rem; font-weight: bold; transition: 0.2s; }
+        .btn-reset:hover { background: var(--danger); color: #fff; }
+        .btn-pay { background: rgba(16, 185, 129, 0.1); color: var(--success); border: 1px solid var(--success); padding: 6px 10px; border-radius: 6px; cursor: pointer; font-size: 0.85rem; transition: 0.2s; display: flex; align-items: center; justify-content: center; }
+        .btn-pay:hover, .btn-pay.paid-active { background: var(--success); color: #fff; }
+        .dashboard-grid { display: grid; grid-template-columns: 1fr 1.3fr 1fr; gap: 20px; align-items: start; }
+        @media (max-width: 1200px) { .dashboard-grid { grid-template-columns: 1fr; } .chart-wrapper { min-height: 250px; } }
+        .vertical-stack { display: flex; flex-direction: column; gap: 20px; }
+        .section-card { background-color: var(--card-bg); border: 1px solid var(--border); border-radius: 14px; padding: 20px; display: flex; flex-direction: column; box-shadow: 0 4px 15px rgba(0, 0, 0, 0.3); width: 100%; overflow-x: auto; }
+        .section-title { font-size: 1.1rem; font-weight: 600; margin-bottom: 15px; display: flex; align-items: center; justify-content: space-between; gap: 8px; }
+        .section-title div { display: flex; align-items: center; gap: 8px; }
+        .section-title i { color: var(--accent); }
+        .sync-indicator { font-size: 0.75rem; color: var(--text-muted); font-weight: 400; display: flex; align-items: center; gap: 5px; }
+        .sync-indicator.synced i { color: var(--success); }
+        .sync-indicator.syncing i { color: #f59e0b; animation: spin 1s linear infinite; }
+        @keyframes spin { 100% { transform: rotate(360deg); } }
+        
+        table { width: 100%; border-collapse: collapse; min-width: 300px; }
+        th { text-align: left; padding: 8px; font-size: 0.75rem; color: var(--text-muted); text-transform: uppercase; border-bottom: 1px solid var(--border); }
+        td { padding: 12px 8px; border-bottom: 1px solid var(--border); font-size: 0.9rem; vertical-align: middle; }
+        .name-cell { display: flex; align-items: center; gap: 10px; font-weight: 500; width: 100%; }
+        .name-cell .comment { display: block; font-size: 0.7rem; color: #f59e0b; font-weight: 400; margin-top: 3px; }
+        .card-link-select { background-color: #1c1c1e; border: 1px solid var(--border); color: var(--text-muted); font-size: 0.75rem; padding: 4px 6px; border-radius: 4px; margin-top: 5px; outline: none; width: 100px; }
+        .toggle-btn { background: #1c1c1e; border: 1px solid var(--border); color: var(--text-muted); padding: 5px 10px; border-radius: 6px; font-size: 0.75rem; font-weight: 600; cursor: pointer; white-space: nowrap; }
+        .toggle-btn.active { background: rgba(21, 128, 61, 0.2); color: #4ade80; border-color: var(--color-promerica); }
+        .icon-wrap { width: 30px; height: 30px; background: rgba(255, 255, 255, 0.03); border-radius: 8px; display: flex; align-items: center; justify-content: center; font-size: 0.9rem; border: 1px solid rgba(255, 255, 255, 0.05); flex-shrink: 0; }
+        .date-badge { background-color: #1e293b; color: #94a3b8; padding: 4px 8px; border-radius: 6px; font-size: 0.8rem; font-weight: 500; display: inline-block; white-space: nowrap; }
+        .amount-input { background: transparent; border: 1px solid transparent; color: var(--text-main); font-size: 1rem; width: 80px; padding: 4px; border-radius: 4px; text-align: right; outline: none; font-weight: 600; }
+        .amount-input.input-paid { text-decoration: line-through; color: var(--text-muted); opacity: 0.6; }
+        .amount-row { display: flex; align-items: center; justify-content: flex-end; gap: 6px; }
+        .deducted-indicator { font-size: 0.7rem; color: var(--success); display: block; margin-top: 4px; text-align: right; }
+        tfoot tr td { padding-top: 15px; font-weight: 700; font-size: 1rem; }
+        .total-label { text-align: right; color: var(--text-muted); font-size: 0.8rem; text-transform: uppercase; }
+        .total-amount { text-align: right; color: var(--danger); }
+        .chart-wrapper { display: flex; flex-direction: column; align-items: center; justify-content: center; height: 100%; min-height: 200px; }
+        #no-data-msg { color: var(--text-muted); font-size: 0.85rem; text-align: center; margin-top: 20px; }
+        .ic-fede { color: var(--color-fede); } .ic-agricola { color: var(--color-agricola); } .ic-promerica { color: var(--color-promerica); }
+        .ic-peya { color: var(--color-peya); } .ic-credicomer { color: var(--color-credicomer); } .ic-cuscatlan { color: var(--color-cuscatlan); }
+        .ic-default { color: var(--accent); }
+
+        .name-input { background: transparent; border: 1px dashed transparent; color: var(--text-main); font-size: 0.95rem; width: 100%; outline: none; transition: all 0.2s; font-weight: 500; padding: 2px; }
+        .name-input:focus, .name-input:hover { border-bottom: 1px dashed var(--text-muted); }
+        .btn-icon { background: transparent; border: none; color: var(--danger); cursor: pointer; font-size: 0.85rem; opacity: 0.7; padding: 5px; margin-right: 5px; }
+        .btn-icon:hover { opacity: 1; }
+        .btn-add { background: rgba(56, 189, 248, 0.1); color: var(--accent); border: 1px dashed var(--accent); width: 100%; padding: 10px; border-radius: 6px; cursor: pointer; margin-top: 15px; font-weight: 600; transition: 0.2s; display: flex; align-items: center; justify-content: center; gap: 8px; }
+        .btn-add:hover { background: var(--accent); color: #000; }
+    </style>
+</head>
+<body>
+
+<div class="container">
+    <header>
+        <div class="brand-area">
+            <h1>Mis Gastos</h1>
+            <select id="monthSelect" class="month-selector" onchange="switchMonth()"></select>
+            <span id="sync-status" class="sync-indicator"><i class="fa-solid fa-cloud"></i> Local</span>
+        </div>
+        <div class="header-stats">
+            <div class="stat-box">
+                <label>Salario Mensual</label>
+                <div class="salary-input-wrapper">
+                    <span>$</span>
+                    <input type="number" id="salary" class="salary-input" value="683.53" step="0.01" onchange="saveCurrentMonthData()">
+                </div>
+            </div>
+            <div class="stat-box">
+                <label>Disponible del Mes</label>
+                <div class="stat-value text-success" id="total-available">$0.00</div>
+            </div>
+            <!-- El reset borra caché local, NO borra Firestore -->
+            <button class="btn-reset" onclick="resetAppData()" title="Restablecer caché local si hay un error (no borra la nube)"><i class="fa-solid fa-rotate-right"></i></button>
+        </div>
+    </header>
+
+    <div class="dashboard-grid">
+        <div class="vertical-stack">
+            <div class="section-card">
+                <div class="section-title">
+                    <div><i class="fa-solid fa-wallet"></i> Gastos Fijos</div>
+                </div>
+                <table>
+                    <thead>
+                        <tr><th>Descripción</th><th>Ligar</th><th style="text-align: right;">Monto</th></tr>
+                    </thead>
+                    <tbody id="fixed-tbody"></tbody>
+                    <tfoot>
+                        <tr><td colspan="2" class="total-label">Total Fijos:</td><td id="total-fixed" class="total-amount">$0.00</td></tr>
+                    </tfoot>
+                </table>
+                <button class="btn-add" onclick="addFixedExpense()"><i class="fa-solid fa-plus"></i> Añadir Gasto Fijo</button>
+            </div>
+
+            <div class="section-card">
+                <div class="section-title"><div><i class="fa-solid fa-calendar-check"></i> Compras a Cuotas</div></div>
+                <table>
+                    <thead>
+                        <tr><th>Artículo</th><th>Cuota</th><th>Estado</th><th style="text-align: right;">Monto</th></tr>
+                    </thead>
+                    <tbody id="installments-tbody"></tbody>
+                    <tfoot>
+                        <tr><td colspan="3" class="total-label">Total Cuotas:</td><td id="total-installments" class="total-amount">$0.00</td></tr>
+                    </tfoot>
+                </table>
+            </div>
+        </div>
+
+        <div class="section-card">
+            <div class="section-title"><div><i class="fa-solid fa-credit-card"></i> Tarjetas de Crédito</div></div>
+            <table>
+                <thead>
+                    <tr><th>Tarjeta</th><th>Corte</th><th style="text-align: right;">Saldo / Neto</th></tr>
+                </thead>
+                <tbody id="cards-tbody"></tbody>
+                <tfoot>
+                    <tr><td colspan="2" class="total-label">Total Tarjetas:</td><td id="total-cards" class="total-amount">$0.00</td></tr>
+                </tfoot>
+            </table>
+        </div>
+
+        <div class="section-card">
+            <div class="section-title"><div><i class="fa-solid fa-chart-pie"></i> Distribución</div></div>
+            <div class="chart-wrapper">
+                <canvas id="spendingChart" width="200" height="200"></canvas>
+                <div id="no-data-msg" style="display: none;">No hay saldos activos.</div>
+            </div>
+        </div>
+    </div>
+</div>
+
+<script>
+    // --- 1. CONFIGURACIÓN E INICIALIZACIÓN DE FIREBASE ---
+    const firebaseConfig = {
+        apiKey: "AIzaSyDIuTFA_fHOilfJXXw3VZlUMnkku0cco_w",
+        authDomain: "mis-gastos-cloud.firebaseapp.com",
+        projectId: "mis-gastos-cloud",
+        storageBucket: "mis-gastos-cloud.firebasestorage.app",
+        messagingSenderId: "878410260022",
+        appId: "1:878410260022:web:601498282dbb588ef40297",
+        measurementId: "G-30WMWXYDWN"
+    };
+
+    firebase.initializeApp(firebaseConfig);
+    const db = firebase.firestore();
+
+    // --- 2. DATOS Y LÓGICA PRINCIPAL ---
+    const monthTemplate = {
+        salary: 683.53,
+        fixed: [
+            { id: "f1", name: "Plan móvil Tigo", icon: "fa-solid fa-mobile-screen-button", class: "ic-default", amount: 20.00, linkedCardId: "" },
+            { id: "f2", name: "Plan Residencial", icon: "fa-solid fa-wifi", class: "ic-default", amount: 35.00, linkedCardId: "" },
+            { id: "f3", name: "Abono Promerica", icon: "fa-solid fa-file-invoice-dollar", class: "ic-default", amount: 123.00, linkedCardId: "" }
+        ],
+        installments: [
+            { id: "i1", name: "Lavadora", icon: "fa-solid fa-blender", class: "ic-promerica", totalAmount: 819.26, monthsPlazo: 24, startYear: 2026, startMonth: 5, cardName: "Promerica", linkedCardId: "c5", cardClass: "bg-promerica", comment: "", papaAbono: 0, isApplied: false },
+            { id: "i2", name: "Secadora", icon: "fa-solid fa-wind", class: "ic-cuscatlan", totalAmount: 819.26, monthsPlazo: 24, startYear: 2026, startMonth: 5, cardName: "UNO Cuscatlán", linkedCardId: "c9", cardClass: "bg-cuscatlan", comment: "Papá abona $42", papaAbono: 42.00, isApplied: false }
+        ],
+        cards: [
+            { id: "c1", name: "Siman", icon: "fa-solid fa-credit-card", class: "ic-default", cutoff: "25 del mes", balance: 20.73, colorCode: "#38bdf8", isPaid: false },
+            { id: "c2", name: "Walmart", icon: "fa-solid fa-shopping-cart", class: "ic-default", cutoff: "12 del mes", balance: 0.00, colorCode: "#a1a1aa", isPaid: false },
+            { id: "c3", name: "Fede", icon: "fa-solid fa-credit-card", class: "ic-fede", cutoff: "06 del mes", balance: 0.00, colorCode: "#4ade80", isPaid: false },
+            { id: "c4", name: "Agrícola", icon: "fa-solid fa-credit-card", class: "ic-agricola", cutoff: "09 del mes", balance: 0.00, colorCode: "#ffffff", isPaid: false },
+            { id: "c5", name: "Promerica", icon: "fa-solid fa-credit-card", class: "ic-promerica", cutoff: "09 del mes", balance: 0.00, colorCode: "#15803d", isPaid: false },
+            { id: "c6", name: "Prisemart", icon: "fa-solid fa-shopping-cart", class: "ic-default", cutoff: "24 del mes", balance: 0.00, colorCode: "#60a5fa", isPaid: false },
+            { id: "c7", name: "Credicomer", icon: "fa-solid fa-credit-card", class: "ic-credicomer", cutoff: "13 del mes", balance: 0.00, colorCode: "#22d3ee", isPaid: false },
+            { id: "c8", name: "PEYA", icon: "fa-solid fa-utensils", class: "ic-peya", cutoff: "06 del mes", balance: 0.00, colorCode: "#ef4444", isPaid: false },
+            { id: "c9", name: "Cuscatlán", icon: "fa-solid fa-credit-card", class: "ic-cuscatlan", cutoff: "-- del mes", balance: 0.00, colorCode: "#f97316", isPaid: false }
+        ]
+    };
+
+    let globalStorageData = {};
+    let currentMonthKey = "";
+    let chartInstance = null;
+    let syncTimeout = null;
+
+    function updateSyncUI(status) {
+        const el = document.getElementById('sync-status');
+        if(status === 'syncing') {
+            el.className = 'sync-indicator syncing';
+            el.innerHTML = '<i class="fa-solid fa-arrows-rotate"></i> Sincronizando...';
+        } else if (status === 'synced') {
+            el.className = 'sync-indicator synced';
+            el.innerHTML = '<i class="fa-solid fa-cloud-check"></i> Nube actualizada';
+            setTimeout(() => {
+                if(el.className.includes('synced')) {
+                    el.className = 'sync-indicator';
+                    el.innerHTML = '<i class="fa-solid fa-cloud"></i> En línea';
+                }
+            }, 3000);
+        } else if (status === 'offline') {
+            el.className = 'sync-indicator';
+            el.innerHTML = '<i class="fa-solid fa-cloud-offline" style="color:var(--danger)"></i> Modo Local (Sin Internet)';
+        }
+    }
+
+    async function initStorage() {
+        // 1. Cargar caché local primero para rapidez visual (Local First)
+        try { 
+            const stored = localStorage.getItem('misGastosGlobalData'); 
+            if (stored) globalStorageData = JSON.parse(stored); 
+        } catch(e) { globalStorageData = {}; }
+
+        setupMonthSelector();
+        initChart();
+        loadMonthData(currentMonthKey); // Renderiza inmediato con lo local
+        
+        // 2. Traer datos de Firebase en segundo plano para sincronizar
+        updateSyncUI('syncing');
+        try {
+            const snapshot = await db.collection("gastos_mensuales").get();
+            if(!snapshot.empty) {
+                snapshot.forEach(doc => {
+                    // Solo sobreescribir si Firebase tiene info
+                    globalStorageData[doc.id] = doc.data(); 
+                });
+                // Actualizar caché local con la verdad de la nube
+                localStorage.setItem('misGastosGlobalData', JSON.stringify(globalStorageData));
+                loadMonthData(currentMonthKey); // Re-renderizar si hubo cambios en la nube
+                updateSyncUI('synced');
+            } else {
+                // Si la colección está vacía (primer uso), guardamos el mes actual
+                saveCurrentMonthData();
+            }
+        } catch(error) {
+            console.error("Error obteniendo datos de Firestore:", error);
+            updateSyncUI('offline');
+        }
+    }
+
+    function resetAppData() {
+        if(confirm("¿Restablecer el caché local del navegador? (Esto NO borrará los datos guardados en la nube de Firebase).")) { 
+            localStorage.removeItem('misGastosGlobalData'); 
+            location.reload(); 
+        }
+    }
+
+    function setupMonthSelector() {
+        const select = document.getElementById('monthSelect');
+        const monthsNames = ["Enero", "Febrero", "Marzo", "Abril", "Mayo", "Junio", "Julio", "Agosto", "Septiembre", "Octubre", "Noviembre", "Diciembre"];
+        const today = new Date();
+        const currentYear = today.getFullYear();
+        const currentMonth = today.getMonth();
+        currentMonthKey = `${currentYear}-${String(currentMonth + 1).padStart(2, '0')}`;
+        for (let i = -6; i <= 6; i++) {
+            let d = new Date(currentYear, currentMonth + i, 1);
+            let key = `${d.getFullYear()}-${String(d.getMonth() + 1).padStart(2, '0')}`;
+            let option = document.createElement('option');
+            option.value = key; option.innerText = `${monthsNames[d.getMonth()]} ${d.getFullYear()}`;
+            if (key === currentMonthKey) option.selected = true;
+            select.appendChild(option);
+        }
+    }
+
+    function sanitizeData(monthKey) {
+        if (!globalStorageData[monthKey]) {
+            globalStorageData[monthKey] = JSON.parse(JSON.stringify(monthTemplate));
+            let keys = Object.keys(globalStorageData).sort();
+            let lastKey = keys.filter(k => k !== monthKey).pop();
+            
+            if (lastKey && globalStorageData[lastKey]) {
+                globalStorageData[monthKey].salary = globalStorageData[lastKey].salary || monthTemplate.salary;
+                globalStorageData[monthKey].fixed = JSON.parse(JSON.stringify(globalStorageData[lastKey].fixed || monthTemplate.fixed));
+            }
+            
+            globalStorageData[monthKey].cards.forEach(c => { c.balance = 0; c.isPaid = false; });
+            globalStorageData[monthKey].installments.forEach(i => i.isApplied = false);
+            if (monthKey === "2026-05") globalStorageData[monthKey].cards[0].balance = 20.73;
+        }
+
+        let data = globalStorageData[monthKey];
+        data.salary = parseFloat(data.salary) || monthTemplate.salary;
+        if (!Array.isArray(data.fixed)) data.fixed = JSON.parse(JSON.stringify(monthTemplate.fixed));
+        if (!Array.isArray(data.installments)) data.installments = JSON.parse(JSON.stringify(monthTemplate.installments));
+        if (!Array.isArray(data.cards)) data.cards = JSON.parse(JSON.stringify(monthTemplate.cards));
+
+        data.fixed = data.fixed.map(f => { return { ...f, linkedCardId: f.linkedCardId || "" }; });
+        data.installments = data.installments.map((inst, i) => { let t = monthTemplate.installments[i] || monthTemplate.installments[0]; return { ...t, ...inst, isApplied: !!inst.isApplied, linkedCardId: inst.linkedCardId || t.linkedCardId }; });
+        data.cards = data.cards.map((c, i) => { let t = monthTemplate.cards[i] || monthTemplate.cards[0]; return { ...t, ...c, isPaid: !!c.isPaid, colorCode: c.colorCode || t.colorCode }; });
+
+        monthTemplate.cards.forEach(tCard => { if (!data.cards.find(c => c.id === tCard.id)) data.cards.push(JSON.parse(JSON.stringify(tCard))); });
+    }
+
+    function loadMonthData(monthKey) { 
+        sanitizeData(monthKey); 
+        document.getElementById('salary').value = globalStorageData[monthKey].salary.toFixed(2); 
+        renderAll(); 
+    }
+    
+    function switchMonth() { 
+        currentMonthKey = document.getElementById('monthSelect').value; 
+        loadMonthData(currentMonthKey); 
+    }
+
+    function renderAll() { renderFixed(); renderInstallments(); renderCards(); calculateTotals(); updateChart(); }
+
+    function renderFixed() {
+        const tbody = document.getElementById('fixed-tbody');
+        tbody.innerHTML = '';
+        const cards = globalStorageData[currentMonthKey].cards;
+
+        globalStorageData[currentMonthKey].fixed.forEach((item, index) => {
+            let selectOptions = `<option value="">Efectivo</option>`;
+            cards.forEach(card => {
+                const selected = item.linkedCardId === card.id ? 'selected' : '';
+                selectOptions += `<option value="${card.id}" ${selected}>${card.name}</option>`;
+            });
+
+            tbody.innerHTML += `
+                <tr>
+                    <td>
+                        <div class="name-cell">
+                            <button class="btn-icon" onclick="deleteFixedExpense(${index})" title="Eliminar gasto"><i class="fa-solid fa-trash"></i></button>
+                            <div class="icon-wrap"><i class="${item.icon || 'fa-solid fa-receipt'} ${item.class || 'ic-default'}"></i></div>
+                            <input type="text" class="name-input" value="${item.name}" onchange="updateFixedName(${index}, this.value)" placeholder="Nombre del gasto">
+                        </div>
+                    </td>
+                    <td><select class="card-link-select" onchange="linkFixedToCard(${index}, this.value)">${selectOptions}</select></td>
+                    <td><input type="number" class="amount-input" step="0.01" value="${item.amount.toFixed(2)}" onchange="updateFixedAmount(${index}, this.value)"></td>
+                </tr>
+            `;
+        });
+    }
+
+    function renderInstallments() {
+        const tbody = document.getElementById('installments-tbody');
+        tbody.innerHTML = '';
+        const [viewYear, viewMonth] = currentMonthKey.split('-').map(Number);
+
+        globalStorageData[currentMonthKey].installments.forEach((item, index) => {
+            const monthsDiff = (viewYear - item.startYear) * 12 + (viewMonth - item.startMonth) + 1;
+            let cuotaText = "--", cuotaMesValue = 0, showToggle = false;
+
+            if (monthsDiff >= 1 && monthsDiff <= item.monthsPlazo) {
+                cuotaText = `${monthsDiff}/${item.monthsPlazo}`;
+                cuotaMesValue = Math.max(0, (item.totalAmount / item.monthsPlazo) - item.papaAbono);
+                if (cuotaMesValue > 0) showToggle = true; 
+            } else if (monthsDiff > item.monthsPlazo) { cuotaText = "Fin"; } else { cuotaText = "N/A"; }
+
+            let toggleHtml = '<span class="date-badge" style="opacity:0.4">N/A</span>';
+            if (showToggle) {
+                const activeClass = item.isApplied ? "active" : "";
+                const btnText = item.isApplied ? "Reflejado" : "Pendiente";
+                toggleHtml = `<button class="toggle-btn ${activeClass}" onclick="toggleInstallmentApplied(${index})">${btnText}</button>`;
+            }
+
+            tbody.innerHTML += `
+                <tr>
+                    <td>
+                        <div class="name-cell">
+                            <div class="icon-wrap"><i class="${item.icon} ${item.class}"></i></div>
+                            <div>
+                                <span>${item.name}</span>
+                                ${item.comment ? `<span class="comment"><i class="fa-solid fa-heart"></i> ${item.comment}</span>` : ''}
+                            </div>
+                        </div>
+                    </td>
+                    <td><span class="date-badge">${cuotaText}</span></td>
+                    <td>${toggleHtml}</td>
+                    <td style="text-align: right; font-weight: 600;">$${cuotaMesValue.toFixed(2)}</td>
+                </tr>
+            `;
+        });
+    }
+
+    function renderCards() {
+        const tbody = document.getElementById('cards-tbody');
+        tbody.innerHTML = '';
+        const [viewYear, viewMonth] = currentMonthKey.split('-').map(Number);
+
+        globalStorageData[currentMonthKey].cards.forEach((card, index) => {
+            let fixedDeductions = 0;
+            globalStorageData[currentMonthKey].fixed.forEach(f => { if (f.linkedCardId === card.id) fixedDeductions += f.amount; });
+
+            let installmentDeductions = 0;
+            globalStorageData[currentMonthKey].installments.forEach(i => {
+                if (i.linkedCardId === card.id && i.isApplied) {
+                    const monthsDiff = (viewYear - i.startYear) * 12 + (viewMonth - i.startMonth) + 1;
+                    if (monthsDiff >= 1 && monthsDiff <= i.monthsPlazo) installmentDeductions += Math.max(0, (i.totalAmount / i.monthsPlazo) - i.papaAbono);
+                }
+            });
+
+            const totalDeductions = fixedDeductions + installmentDeductions;
+            const netBalance = Math.max(0, card.balance - totalDeductions);
+            const inputPaidClass = card.isPaid ? 'input-paid' : '';
+            const btnPaidClass = card.isPaid ? 'paid-active' : '';
+
+            tbody.innerHTML += `
+                <tr>
+                    <td>
+                        <div class="name-cell">
+                            <div class="icon-wrap"><i class="${card.icon} ${card.class}"></i></div>
+                            <span>${card.name}</span>
+                        </div>
+                    </td>
+                    <td><span class="date-badge">${card.cutoff}</span></td>
+                    <td>
+                        <div class="amount-row">
+                            <input type="number" class="amount-input ${inputPaidClass}" step="0.01" value="${card.balance.toFixed(2)}" onchange="updateCardBalance(${index}, this.value)">
+                            <button class="btn-pay ${btnPaidClass}" onclick="togglePayCard(${index})" title="Marcar como pagado"><i class="fa-solid fa-check"></i></button>
+                        </div>
+                        ${totalDeductions > 0 ? `<span class="deducted-indicator">Neto: $${netBalance.toFixed(2)} (-$${totalDeductions.toFixed(2)})</span>` : ''}
+                    </td>
+                </tr>
+            `;
+        });
+    }
+
+    function updateFixedName(index, value) { globalStorageData[currentMonthKey].fixed[index].name = value; saveCurrentMonthData(); }
+    function addFixedExpense() { globalStorageData[currentMonthKey].fixed.push({ id: "f_" + Date.now(), name: "Nuevo Gasto", icon: "fa-solid fa-receipt", class: "ic-default", amount: 0.00, linkedCardId: "" }); saveCurrentMonthData(); renderAll(); }
+    function deleteFixedExpense(index) { if(confirm("¿Eliminar este gasto fijo de este mes?")) { globalStorageData[currentMonthKey].fixed.splice(index, 1); saveCurrentMonthData(); renderAll(); } }
+    function updateFixedAmount(index, value) { globalStorageData[currentMonthKey].fixed[index].amount = parseFloat(value) || 0; saveCurrentMonthData(); renderAll(); }
+    function linkFixedToCard(index, cardId) { globalStorageData[currentMonthKey].fixed[index].linkedCardId = cardId; saveCurrentMonthData(); renderAll(); }
+    function toggleInstallmentApplied(index) { globalStorageData[currentMonthKey].installments[index].isApplied = !globalStorageData[currentMonthKey].installments[index].isApplied; saveCurrentMonthData(); renderAll(); }
+    function updateCardBalance(index, value) { globalStorageData[currentMonthKey].cards[index].balance = parseFloat(value) || 0; saveCurrentMonthData(); updateChart(); renderAll(); }
+    function togglePayCard(index) { globalStorageData[currentMonthKey].cards[index].isPaid = !globalStorageData[currentMonthKey].cards[index].isPaid; saveCurrentMonthData(); renderAll(); }
+
+    function getInstallmentsTotal() {
+        const [viewYear, viewMonth] = currentMonthKey.split('-').map(Number);
+        return globalStorageData[currentMonthKey].installments.reduce((sum, item) => {
+            const monthsDiff = (viewYear - item.startYear) * 12 + (viewMonth - item.startMonth) + 1;
+            if (monthsDiff >= 1 && monthsDiff <= item.monthsPlazo) { return sum + Math.max(0, (item.totalAmount / item.monthsPlazo) - item.papaAbono); }
+            return sum;
+        }, 0);
+    }
+
+    // --- 3. RUTINA DE GUARDADO HÍBRIDA (LOCAL + FIREBASE) ---
+    function saveCurrentMonthData() {
+        globalStorageData[currentMonthKey].salary = parseFloat(document.getElementById('salary').value) || 0;
+        
+        // Guarda inmediatamente local para que la UI se sienta instantánea
+        localStorage.setItem('misGastosGlobalData', JSON.stringify(globalStorageData));
+        
+        // Empuja a Firebase en segundo plano
+        updateSyncUI('syncing');
+        clearTimeout(syncTimeout); // Evitar múltiples peticiones seguidas al teclear rápido
+        syncTimeout = setTimeout(() => {
+            db.collection("gastos_mensuales").doc(currentMonthKey).set(globalStorageData[currentMonthKey])
+                .then(() => updateSyncUI('synced'))
+                .catch(err => {
+                    console.error("Error al subir a Firestore:", err);
+                    updateSyncUI('offline');
+                });
+        }, 800); // 800ms de retraso para empaquetar los cambios
+    }
+
+    function calculateTotals() {
+        const [viewYear, viewMonth] = currentMonthKey.split('-').map(Number);
+        const totalFixedBruto = globalStorageData[currentMonthKey].fixed.reduce((sum, item) => sum + item.amount, 0);
+        const totalInstallmentsBruto = getInstallmentsTotal();
+        
+        let totalCardsNeto = 0;
+        globalStorageData[currentMonthKey].cards.forEach(card => {
+            let fixedDeductions = 0;
+            globalStorageData[currentMonthKey].fixed.forEach(f => { if (f.linkedCardId === card.id) fixedDeductions += f.amount; });
+            let instDeductions = 0;
+            globalStorageData[currentMonthKey].installments.forEach(i => {
+                if (i.linkedCardId === card.id && i.isApplied) {
+                    const monthsDiff = (viewYear - i.startYear) * 12 + (viewMonth - i.startMonth) + 1;
+                    if (monthsDiff >= 1 && monthsDiff <= i.monthsPlazo) instDeductions += Math.max(0, (i.totalAmount / i.monthsPlazo) - i.papaAbono);
+                }
+            });
+            totalCardsNeto += Math.max(0, card.balance - (fixedDeductions + instDeductions));
+        });
+
+        const totalExpenses = totalFixedBruto + totalInstallmentsBruto + totalCardsNeto;
+        const available = globalStorageData[currentMonthKey].salary - totalExpenses;
+
+        document.getElementById('total-fixed').innerText = '$' + totalFixedBruto.toFixed(2);
+        document.getElementById('total-installments').innerText = '$' + totalInstallmentsBruto.toFixed(2);
+        document.getElementById('total-cards').innerText = '$' + totalCardsNeto.toFixed(2);
+        
+        const availableEl = document.getElementById('total-available');
+        availableEl.innerText = '$' + available.toFixed(2);
+        if (available < 0) { availableEl.style.color = 'var(--danger)'; } else { availableEl.style.color = 'var(--success)'; }
+    }
+
+    function initChart() {
+        const ctx = document.getElementById('spendingChart').getContext('2d');
+        chartInstance = new Chart(ctx, {
+            type: 'doughnut',
+            data: { labels: [], datasets: [{ data: [], backgroundColor: [], borderWidth: 2, borderColor: '#121212' }] },
+            options: { responsive: true, maintainAspectRatio: false, plugins: { legend: { position: 'bottom', labels: { color: '#ffffff', font: { size: 10 }, padding: 10 } }, tooltip: { callbacks: { label: function(context) { return ` ${context.label}: $${context.raw.toFixed(2)}`; } } } } }
+        });
+    }
+
+    function updateChart() {
+        if (!chartInstance) return;
+        const activeCards = globalStorageData[currentMonthKey].cards.filter(c => c.balance > 0);
+        if (activeCards.length === 0) {
+            document.getElementById('spendingChart').style.display = 'none';
+            document.getElementById('no-data-msg').style.display = 'block';
+        } else {
+            document.getElementById('spendingChart').style.display = 'block';
+            document.getElementById('no-data-msg').style.display = 'none';
+            chartInstance.data.labels = activeCards.map(c => c.name);
+            chartInstance.data.datasets[0].data = activeCards.map(c => c.balance);
+            chartInstance.data.datasets[0].backgroundColor = activeCards.map(c => c.colorCode);
+            chartInstance.update();
+        }
+    }
+
+    // ARRANQUE DE LA APP
+    window.onload = () => {
+        initStorage();
+    };
+</script>
+
+</body>
+</html>
