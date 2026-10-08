@@ -23,7 +23,7 @@
         import { initializeApp } from "https://www.gstatic.com/firebasejs/10.8.1/firebase-app.js";
         import { getFirestore, doc, getDoc, updateDoc } from "https://www.gstatic.com/firebasejs/10.8.1/firebase-firestore.js";
 
-        // ⚠️ PASO CRÍTICO: REEMPLAZA ESTO CON LA CONFIGURACIÓN DE TU INDEX.HTML
+        // ⚠️ PEGA AQUÍ TU CONFIGURACIÓN DE FIREBASE (El bloque const firebaseConfig = {...})
         const firebaseConfig = {
         apiKey: "AIzaSyDIuTFA_fHOilfJXXw3VZlUMnkku0cco_w",
         authDomain: "mis-gastos-cloud.firebaseapp.com",
@@ -42,7 +42,6 @@
             const mensaje = document.getElementById('mensaje');
 
             try {
-                // Extraer datos del enlace generado por iOS
                 const urlParams = new URLSearchParams(window.location.search);
                 const mes = urlParams.get('mes'); 
                 const tarjetaNombre = urlParams.get('tarjeta'); 
@@ -57,22 +56,24 @@
 
                 const montoGasto = parseFloat(montoStr.replace(',', '.'));
                 
-                // Buscar el mes en tu colección (Asegúrate de que la colección se llame "gastos" o cámbialo aquí)
-                const docRef = doc(db, "gastos", mes); 
+                // Buscar en la colección "gastos_mensuales"
+                const docRef = doc(db, "gastos_mensuales", mes); 
                 const docSnap = await getDoc(docRef);
 
                 if (docSnap.exists()) {
                     let datos = docSnap.data();
-                    let tarjetas = datos.tarjetas || []; 
-                    let indice = tarjetas.findIndex(t => t.nombre === tarjetaNombre);
+                    // Buscar en el arreglo "cards"
+                    let tarjetas = datos.cards || []; 
+                    // Buscar por el campo "name"
+                    let indice = tarjetas.findIndex(t => t.name === tarjetaNombre);
 
                     if (indice !== -1) {
-                        // Sumar el saldo
-                        let saldoActual = parseFloat(tarjetas[indice].saldo) || 0;
-                        tarjetas[indice].saldo = saldoActual + montoGasto;
+                        // Sumar al campo "balance"
+                        let saldoActual = parseFloat(tarjetas[indice].balance) || 0;
+                        tarjetas[indice].balance = saldoActual + montoGasto;
                         
-                        // Actualizar en Firebase
-                        await updateDoc(docRef, { tarjetas: tarjetas });
+                        // Actualizar el arreglo "cards" en Firebase
+                        await updateDoc(docRef, { cards: tarjetas });
                         
                         titulo.textContent = "¡Gasto Registrado!";
                         titulo.className = "success";
@@ -85,7 +86,7 @@
                 } else {
                     titulo.textContent = "Mes no existe";
                     titulo.className = "error";
-                    mensaje.textContent = `Crea el mes de ${mes} en el Dashboard primero.`;
+                    mensaje.textContent = `Crea el mes ${mes} en el Dashboard.`;
                 }
             } catch (error) {
                 titulo.textContent = "Error de Sistema";
