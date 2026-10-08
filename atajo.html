@@ -1,0 +1,100 @@
+<!DOCTYPE html>
+<html lang="es">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Registrando Gasto...</title>
+    <style>
+        body { background-color: #000000; color: #ffffff; font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, Helvetica, Arial, sans-serif; display: flex; flex-direction: column; align-items: center; justify-content: center; height: 100vh; margin: 0; }
+        .card { background: #1c1c1e; padding: 30px; border-radius: 20px; text-align: center; width: 80%; max-width: 350px; box-shadow: 0 10px 30px rgba(0,0,0,0.5); }
+        h2 { margin: 0 0 10px 0; font-size: 22px; }
+        p { margin: 0; color: #8e8e93; font-size: 16px; }
+        .success { color: #34c759; }
+        .error { color: #ff3b30; }
+    </style>
+</head>
+<body>
+    <div class="card">
+        <h2 id="titulo">Sincronizando...</h2>
+        <p id="mensaje">Conectando con Firebase</p>
+    </div>
+
+    <script type="module">
+        import { initializeApp } from "https://www.gstatic.com/firebasejs/10.8.1/firebase-app.js";
+        import { getFirestore, doc, getDoc, updateDoc } from "https://www.gstatic.com/firebasejs/10.8.1/firebase-firestore.js";
+
+        // ⚠️ PASO CRÍTICO: REEMPLAZA ESTO CON LA CONFIGURACIÓN DE TU INDEX.HTML
+        const firebaseConfig = {
+        apiKey: "AIzaSyDIuTFA_fHOilfJXXw3VZlUMnkku0cco_w",
+        authDomain: "mis-gastos-cloud.firebaseapp.com",
+        projectId: "mis-gastos-cloud",
+        storageBucket: "mis-gastos-cloud.firebasestorage.app",
+        messagingSenderId: "878410260022",
+        appId: "1:878410260022:web:601498282dbb588ef40297",
+        measurementId: "G-30WMWXYDWN"
+        };
+
+        const app = initializeApp(firebaseConfig);
+        const db = getFirestore(app);
+
+        async function procesar() {
+            const titulo = document.getElementById('titulo');
+            const mensaje = document.getElementById('mensaje');
+
+            try {
+                // Extraer datos del enlace generado por iOS
+                const urlParams = new URLSearchParams(window.location.search);
+                const mes = urlParams.get('mes'); 
+                const tarjetaNombre = urlParams.get('tarjeta'); 
+                const montoStr = urlParams.get('monto');
+
+                if (!mes || !tarjetaNombre || !montoStr) {
+                    titulo.textContent = "Error de datos";
+                    titulo.className = "error";
+                    mensaje.textContent = "Faltan parámetros en el atajo.";
+                    return;
+                }
+
+                const montoGasto = parseFloat(montoStr.replace(',', '.'));
+                
+                // Buscar el mes en tu colección (Asegúrate de que la colección se llame "gastos" o cámbialo aquí)
+                const docRef = doc(db, "gastos", mes); 
+                const docSnap = await getDoc(docRef);
+
+                if (docSnap.exists()) {
+                    let datos = docSnap.data();
+                    let tarjetas = datos.tarjetas || []; 
+                    let indice = tarjetas.findIndex(t => t.nombre === tarjetaNombre);
+
+                    if (indice !== -1) {
+                        // Sumar el saldo
+                        let saldoActual = parseFloat(tarjetas[indice].saldo) || 0;
+                        tarjetas[indice].saldo = saldoActual + montoGasto;
+                        
+                        // Actualizar en Firebase
+                        await updateDoc(docRef, { tarjetas: tarjetas });
+                        
+                        titulo.textContent = "¡Gasto Registrado!";
+                        titulo.className = "success";
+                        mensaje.textContent = `$${montoGasto} sumados a ${tarjetaNombre}.`;
+                    } else {
+                        titulo.textContent = "Tarjeta no encontrada";
+                        titulo.className = "error";
+                        mensaje.textContent = `No se halló "${tarjetaNombre}" en la base.`;
+                    }
+                } else {
+                    titulo.textContent = "Mes no existe";
+                    titulo.className = "error";
+                    mensaje.textContent = `Crea el mes de ${mes} en el Dashboard primero.`;
+                }
+            } catch (error) {
+                titulo.textContent = "Error de Sistema";
+                titulo.className = "error";
+                mensaje.textContent = error.message;
+            }
+        }
+
+        procesar();
+    </script>
+</body>
+</html>
